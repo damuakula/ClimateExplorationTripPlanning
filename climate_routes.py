@@ -66,13 +66,10 @@ def precip():
 @app.route("/api/v1.0/stations")
 def stations():
     """Return a list of stations"""
-    results = session.query(Station.name).all()
+    list_of_stations = engine.execute("SELECT name FROM Station")
 
-    # Convert list of tuples into normal list
-    all_names = list(np.ravel(results))
-
-    return jsonify(all_names)
-
+    return jsonify({'list_of_stations': [dict(row) for row in list_of_stations]})
+    
 @app.route("/api/v1.0/tobs")
 def tobs():
     """Return a list of Tobs"""
@@ -88,7 +85,7 @@ def tobs():
     year_from_highest = highestresult - timedelta(days = 365)
 
     # Build the data frame with the 12 months of temperature data
-    twelve_mo_data = engine.execute("SELECT date,tobs FROM Measurement WHERE date<= '" + highest_date[0] + "' AND     date>= '" + str(year_from_highest) + "' ORDER BY date desc")
+    twelve_mo_data = engine.execute("SELECT date,tobs FROM Measurement WHERE date<= '" + highest_date[0] + "' AND date>= '" + str(year_from_highest) + "' ORDER BY date desc")
     all_temperatures = []
     for rec in twelve_mo_data:
         temp_dict = {}
@@ -98,29 +95,32 @@ def tobs():
 
     return jsonify(all_temperatures)
 
-@app.route("/api/v1.0/start")
-def tobs_start():
+@app.route("/api/v1.0/<start>")
+def tobs_start(start):
+    start_tobs_list = engine.execute("SELECT MIN(tobs) AS MinTemp, MAX(tobs) AS MaxTemp, AVG(tobs) AS AvgTemp FROM Measurement WHERE date>= '" + start + "' ORDER BY date desc")
+    start_averages = []
+    for rec in start_tobs_list:
+        avg_dict = {}
+        avg_dict["min"] = rec.MinTemp
+        avg_dict["max"] = rec.MaxTemp
+        avg_dict["avg"] = rec.AvgTemp
+        start_averages.append(avg_dict)
     
-    date = request.args.get('start')
-    print(str(request.query_string))
-
-    #dateresult = datetime.strptime(date, '%Y-%m-%d')
-
-    #start_temp_list = engine.execute("SELECT MIN(tobs) AS MinTemp, MAX(tobs) AS MaxTemp, AVG(tobs) AS AvgTemp FROM Measurement WHERE date >= '" + date + "'")
-
-    #for rec in start_temp_list:
-       #print(rec)
-    
-    return request.query_string
+    return jsonify(start_averages)
    
-@app.route("/api/v1.0/start/end")
-def tobs_start_end():
+@app.route("/api/v1.0/<start>/<end>")
+def tobs_start_end(start,end):
     
-    #start_end_list = engine.execute("SELECT MIN(tobs) AS MinTemp, MAX(tobs) AS MaxTemp, AVG(tobs) AS AvgTemp FROM Measurement WHERE date >= '2016-08-18' AND date <= '2017-08-18'")
-    #for rec in start_end_list:
-       #print(rec)
+    start_end_list = engine.execute("SELECT MIN(tobs) AS MinTemp, MAX(tobs) AS MaxTemp, AVG(tobs) AS AvgTemp FROM Measurement WHERE date >= '" + start + "' AND date <= '" + end + "' ORDER BY date desc")
+    start_end_averages = []
+    for rec in start_end_list:
+        avg_end_dict = {}
+        avg_end_dict["min"] = rec.MinTemp
+        avg_end_dict["max"] = rec.MaxTemp
+        avg_end_dict["avg"] = rec.AvgTemp
+        start_end_averages.append(avg_end_dict)
     
-    return request.query_string
+    return jsonify(start_end_averages)
     
 if __name__ == '__main__':
     app.run(debug=True)
